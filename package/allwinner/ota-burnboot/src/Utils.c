@@ -106,6 +106,7 @@ done:
     return 0;
 }
 
+// 从内核节点 /sys/class/sunxi_info/sys_info 中读取提取两行信息，判定有无安全启动内容
 static int getInfoFromSysinfo(void)
 {
     FILE* fp;
@@ -130,6 +131,7 @@ static int getInfoFromSysinfo(void)
     return 0;
 }
 
+// 初始化系统信息、安全信息
 int initInfo(void)
 {
     getInfoFromSysinfo();
@@ -166,6 +168,7 @@ int getFlashType() {
  * Check secure solution or not
  * Return 0 if normal , return 1 if secure
  */
+// 反映当前是否启用安全
 int check_soc_is_secure(void)
 {
     return _is_secure;
@@ -214,6 +217,7 @@ int check_is_ubi(void)
 }
 
 
+// 从镜像地址读Cookie Buffer到内存中
 int getBufferExtractCookieOfFile(const char* path, BufferExtractCookie* cookie)
 {
 
@@ -249,6 +253,7 @@ err:
     return -errno;
 }
 
+// 校验buffer、长度、psum值，一个简易校验算法——buffer位累加并与psum比较
 static int verify_toc_addsum(void *mem_base, unsigned int size, unsigned int *psum) {
     unsigned int *buf;
     unsigned int count;
@@ -282,6 +287,7 @@ static int verify_toc_addsum(void *mem_base, unsigned int size, unsigned int *ps
         return -1;                          // 校验失败
 }
 
+// 校验 u-boot spl
 int checkBoot0Sum(BufferExtractCookie* cookie) {
     standard_boot_file_head_t  *head_p;
     toc0_private_head_t *head_t;
@@ -292,7 +298,7 @@ int checkBoot0Sum(BufferExtractCookie* cookie) {
     unsigned int sum;
     unsigned int csum;
 
-    if (check_soc_is_secure()) {
+    if (check_soc_is_secure()) { // 检查cookie的魔数和psum
         unsigned int *psum;
         head_t = (toc0_private_head_t *)cookie->buffer;
         if (head_t->magic != TOC_MAIN_INFO_MAGIC) {
@@ -325,7 +331,7 @@ int checkBoot0Sum(BufferExtractCookie* cookie) {
         loop = length >> 2;
 
         for (i = 0, sum = 0; i < loop; i++)
-            sum += buf[i];
+            sum += buf[i]; // 位累加并与check_sum比较
 
         head_p->check_sum = csum;
         ob_debug("Boot0 -> File length is %u,original sum is %u,new sum is %u\n", length, head_p->check_sum, sum);
@@ -414,6 +420,7 @@ int getUbootstartsector(BufferExtractCookie* cookie) {
     return (int)start_sector;
 }
 
+// 生成新的位校验
 int genBoot0CheckSum(void *cookie)
 {
     standard_boot_file_head_t  *head_p;

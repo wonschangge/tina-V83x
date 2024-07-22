@@ -53,6 +53,7 @@ static int sd_boot1_start_pre , sd_boot1_len_pre;
 #define SD_BOOT0_PERMISION "/sys/block/mmcblk0boot0/force_ro"
 #define DEVNODE_PATH_SD_BOOT0 "/dev/mmcblk0boot0"
 
+// 初始化并设置boot0(uboot-spl)和boot1(uboot)的起始位和长度
 static void sdBootInit(void)
 {
     static int inited = 0;
@@ -77,6 +78,7 @@ static void sdBootInit(void)
     return;
 }
 
+// 写buffer
 static int writeSdBoot(int fd, void *buf, off_t offset, size_t bootsize) {
     if (lseek(fd, 0, SEEK_SET) == -1) {
         ob_error("reset the cursor failed! the error num is %d:%s\n", errno, strerror(errno));
@@ -110,6 +112,7 @@ static int readSdBoot(int fd ,off_t offset, size_t bootsize, void *buffer) {
     return 0;
 }
 
+// 更新 Uboot-SPL 老旧地址、数据及长度
 static int updateBoot0Info(void *in_buffer, void *out_buffer,unsigned int buffer_size) {
     //struct boot_sdmmc_private_info_t priv_info;
     if ((in_buffer == NULL) ||(out_buffer == NULL)
@@ -146,24 +149,26 @@ static int updateBoot0Info(void *in_buffer, void *out_buffer,unsigned int buffer
     return 0;
 }
 
+// 更新，传输设备节点句柄和cookie buffer
 static int updateSdBoot0(int fd, BufferExtractCookie *cookie) {
     int ret = 0;
     unsigned char* buffer = (unsigned char *)(malloc(cookie->len));
-    readSdBoot(fd, sd_boot0_start, cookie->len, buffer);
+    readSdBoot(fd, sd_boot0_start, cookie->len, buffer); // 读现有的Uboot SPL buffer
     if (check_soc_is_secure()) {
         sbrom_toc0_config_t *oldToc0Config = (sbrom_toc0_config_t *)(buffer + 0x80);
         sbrom_toc0_config_t *newToc0Config = (sbrom_toc0_config_t *)(cookie->buffer + 0x80);
-        ret = updateBoot0Info((void *)(oldToc0Config->storage_data+160), (void *)(newToc0Config->storage_data+160), 384-160);
+        ret = updateBoot0Info((void *)(oldToc0Config->storage_data+160), (void *)(newToc0Config->storage_data+160), 384-160); // 替换
     } else {
         boot0_file_head_t *oldBoot0  = (boot0_file_head_t *)(buffer);
         boot0_file_head_t *newBoot0  = (boot0_file_head_t *)(cookie->buffer);
-        ret = updateBoot0Info((void *)oldBoot0->prvt_head.storage_data, (void *)newBoot0->prvt_head.storage_data, STORAGE_BUFFER_SIZE);
+        ret = updateBoot0Info((void *)oldBoot0->prvt_head.storage_data, (void *)newBoot0->prvt_head.storage_data, STORAGE_BUFFER_SIZE); // 提取替换用户保留数据信息
     }
-    if (ret == 0) genBoot0CheckSum(cookie->buffer);
+    if (ret == 0) genBoot0CheckSum(cookie->buffer); // 更新check_sum位
     free(buffer);
     return ret;
 }
 
+// 烧 sdcard - uboot-spl
 int burnSdBoot0(BufferExtractCookie *cookie) {
     sdBootInit();
     if (checkBoot0Sum(cookie)){
@@ -179,7 +184,7 @@ int burnSdBoot0(BufferExtractCookie *cookie) {
 
     ob_debug("burnSdBoot0 in mmcblk0:offset = 0x%x, len =0x%lx\n", sd_boot0_start, cookie->len);
     updateSdBoot0(fd, cookie);
-    int ret = writeSdBoot(fd, cookie->buffer, sd_boot0_start, cookie->len);
+    int ret = writeSdBoot(fd, cookie->buffer, sd_boot0_start, cookie->len); // 覆写节点定制
     fsync(fd);
     close(fd);
     if (ret < 0) {
@@ -226,6 +231,7 @@ int burnSdBoot0(BufferExtractCookie *cookie) {
     return ret;
 }
 
+// 
 int burnSdUboot(BufferExtractCookie *cookie) {
     sdBootInit();
     int ret = -1;

@@ -48,6 +48,7 @@ typedef struct {
 int check_soc_is_secure(void);
 int check_is_gpt(void);
 int check_is_ubi(void);
+// 获取Flash类型，简单的根据/proc/cmdline进行关键字符匹配
 int getFlashType();
 int getBufferExtractCookieOfFile(const char* path, BufferExtractCookie* cookie);
 int getUbootstartsector(BufferExtractCookie* cookie);
